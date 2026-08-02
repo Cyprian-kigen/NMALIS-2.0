@@ -34,7 +34,6 @@ def approve_facility_application(application: FacilityApplication, regulator):
                 "reviewed_at": timezone.now(),
             },
         )
-        apply_document_review_outcome(doc, regulator)
     elif application.application_type == FacilityApplication.ApplicationType.LICENCE_RENEWAL:
         facility.county = application.county
         facility.name = application.facility_legal_name
@@ -96,11 +95,17 @@ def approve_practitioner_application(application: PractitionerRenewalApplication
     application.reviewed_at = timezone.now()
     application.save(update_fields=["status", "reviewed_by", "reviewed_at"])
 
+    practitioner = application.practitioner
+    today = timezone.now().date()
+    practitioner.license_expiry = practitioner.license_expiry + relativedelta(years=1)
+    practitioner.cpd_points = 0
+    practitioner.save(update_fields=["license_expiry", "cpd_points", "updated_at"])
+
     refresh_subject_statuses(triggered_by=regulator)
     _notify_practitioner(
-        application.practitioner,
+        practitioner,
         "Practitioner licence renewal approved",
-        "Your renewal application was approved. Once your supporting documents are verified, your licence and CPD will be updated automatically.",
+        "Your renewal application was approved. Your licence has been extended by 1 year and your CPD points have been reset. Supporting documents will be verified separately.",
     )
 
 

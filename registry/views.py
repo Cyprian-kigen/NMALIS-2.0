@@ -458,7 +458,13 @@ def regulator_facility_detail(request, pk):
                 notes = application_review_form.cleaned_data.get("review_notes", "")
                 if decision == "approved":
                     approve_facility_application(review_application, request.user)
-                    messages.success(request, "Facility application approved.")
+                    app_type = review_application.application_type
+                    if app_type == FacilityApplication.ApplicationType.SERVICES_UPDATE:
+                        messages.success(request, "Services update approved.")
+                    elif app_type == FacilityApplication.ApplicationType.LICENCE_RENEWAL:
+                        messages.success(request, "Licence renewal approved.")
+                    else:
+                        messages.success(request, "Facility application approved.")
                 else:
                     reject_facility_application(review_application, request.user, notes)
                     messages.warning(request, "Facility application rejected.")

@@ -49,7 +49,11 @@
             <label class="form-label">{{ form.review_notes.label }}</label>
             {{ form.review_notes }}
           </div>
+          {% if application.application_type == "services_update" %}
           <p class="small text-muted">Approving a services update will automatically update the facility's services in the registry.</p>
+          {% elif application.application_type == "licence_renewal" %}
+          <p class="small text-muted">Approving a licence renewal will extend the facility's accreditation by 1 year.</p>
+          {% endif %}
           <button type="submit" class="btn btn-primary w-100">Submit decision</button>
         </div>
       </form>
