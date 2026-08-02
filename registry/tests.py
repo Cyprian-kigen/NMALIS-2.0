@@ -533,6 +533,36 @@ class FacilityPaymentFlowTests(TestCase):
         self.assertRedirects(r, reverse("facility_payment_step"))
         self.assertEqual(FacilityRenewalPayment.objects.count(), 1)
 
+    def test_licence_renewal_allowed_when_latest_application_is_reviewed(self):
+        self.facility.accreditation_expiry = timezone.now().date() + timedelta(days=15)
+        self.facility.save(update_fields=["accreditation_expiry"])
+        reviewed_application = FacilityApplication.objects.create(
+            facility=self.facility,
+            application_type=FacilityApplication.ApplicationType.LICENCE_RENEWAL,
+            status=FacilityApplication.ApplicationStatus.APPROVED,
+            submitted_by=self.hospital_admin,
+            facility_legal_name=self.facility.name,
+            registration_number=self.facility.registration_number,
+            county=self.facility.county,
+            physical_address=f"{self.facility.name}, {self.facility.county}",
+            telephone="+254700000001",
+            email="admin@test-hospital.demo.ke",
+            director_name="Dr. Sample Director",
+            bed_capacity=50,
+            services_requested=self.facility.services_offered,
+            accreditation_sought_until=self.facility.accreditation_expiry,
+            declaration_agreed=True,
+            reviewed_by=User.objects.filter(role=User.Role.REGULATOR).first(),
+            reviewed_at=timezone.now(),
+        )
+        reviewed_application.created_at = timezone.now() + timedelta(minutes=1)
+        reviewed_application.save(update_fields=["created_at"])
+        self.client.login(username="hosp_pay", password="pass12345")
+        r = self.client.post(reverse("hospital_apply_licence"), self.application_data)
+        self.assertEqual(r.status_code, 302)
+        self.assertRedirects(r, reverse("facility_payment_step"))
+        self.assertEqual(FacilityRenewalPayment.objects.count(), 1)
+
     def test_services_update_allowed_any_time(self):
         self.facility.accreditation_expiry = timezone.now().date() + timedelta(days=365)
         self.facility.save(update_fields=["accreditation_expiry"])
@@ -802,6 +832,42 @@ class PractitionerRenewalFlowTests(TestCase):
         self.assertEqual(r.status_code, 302)
         self.assertRedirects(r, reverse("practitioner_payment_step"))
         self.assertEqual(PractitionerRenewalApplication.objects.count(), 2)
+
+    def test_practitioner_renewal_allowed_when_latest_application_is_reviewed(self):
+        self.practitioner.license_expiry = timezone.now().date() + timedelta(days=15)
+        self.practitioner.save(update_fields=["license_expiry"])
+        PractitionerRenewalApplication.objects.create(
+            practitioner=self.practitioner,
+            status=PractitionerRenewalApplication.ApplicationStatus.PENDING,
+            current_employer="Previous Employer",
+            work_contact_phone="+254700000000",
+            work_email="old@example.com",
+            has_practised_continuously="yes",
+            practice_break_reason="",
+            has_malpractice_history="no",
+            malpractice_details="",
+            submitted_at=timezone.now() - timedelta(days=1),
+        )
+        approved_application = PractitionerRenewalApplication.objects.create(
+            practitioner=self.practitioner,
+            status=PractitionerRenewalApplication.ApplicationStatus.APPROVED,
+            current_employer="Previous Employer",
+            work_contact_phone="+254700000000",
+            work_email="old@example.com",
+            has_practised_continuously="yes",
+            practice_break_reason="",
+            has_malpractice_history="no",
+            malpractice_details="",
+            reviewed_by=self.practitioner_user,
+            reviewed_at=timezone.now(),
+        )
+        approved_application.submitted_at = timezone.now()
+        approved_application.save(update_fields=["submitted_at"])
+        self.client.login(username="practitioner_renew", password="pass12345")
+        r = self.client.post(reverse("practitioner_renewal"), self.renewal_data)
+        self.assertEqual(r.status_code, 302)
+        self.assertRedirects(r, reverse("practitioner_payment_step"))
+        self.assertEqual(PractitionerRenewalApplication.objects.count(), 3)
 
     def test_duplicate_practitioner_renewal_payment_blocked(self):
         self.client.login(username="practitioner_renew", password="pass12345")

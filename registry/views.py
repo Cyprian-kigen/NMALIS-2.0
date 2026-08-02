@@ -575,17 +575,16 @@ def practitioner_renewal(request):
         return redirect("dashboard")
 
     today = timezone.now().date()
-    has_rejected_renewal = PractitionerRenewalApplication.objects.filter(
-        practitioner=profile,
-        status=PractitionerRenewalApplication.ApplicationStatus.REJECTED,
-    ).exists()
-    has_active_renewal = PractitionerRenewalApplication.objects.filter(
-        practitioner=profile,
-        status__in=[
-            PractitionerRenewalApplication.ApplicationStatus.PENDING,
-        ],
-    ).exists()
-    if has_active_renewal:
+    latest_renewal = PractitionerRenewalApplication.objects.filter(practitioner=profile).order_by("-submitted_at", "-id").first()
+    has_rejected_renewal = (
+        latest_renewal is not None
+        and latest_renewal.status == PractitionerRenewalApplication.ApplicationStatus.REJECTED
+    )
+    has_pending_renewal = (
+        latest_renewal is not None
+        and latest_renewal.status == PractitionerRenewalApplication.ApplicationStatus.PENDING
+    )
+    if has_pending_renewal:
         messages.error(
             request,
             "You already have an active licence renewal application. Please wait for regulator review or reapply only if your previous application was rejected.",

@@ -65,23 +65,27 @@ def hospital_apply_licence(request):
 
     today = datetime.date.today()
     expiry = facility.accreditation_expiry
+    latest_renewal = None
+    if expiry:
+        latest_renewal = (
+            FacilityApplication.objects.filter(
+                facility=facility,
+                application_type=FacilityApplication.ApplicationType.LICENCE_RENEWAL,
+            )
+            .order_by("-created_at", "-id")
+            .first()
+        )
     has_rejected_renewal = (
         expiry
-        and FacilityApplication.objects.filter(
-            facility=facility,
-            application_type=FacilityApplication.ApplicationType.LICENCE_RENEWAL,
-            status=FacilityApplication.ApplicationStatus.REJECTED,
-        ).exists()
+        and latest_renewal is not None
+        and latest_renewal.status == FacilityApplication.ApplicationStatus.REJECTED
     )
     if expiry:
-        has_active_renewal = FacilityApplication.objects.filter(
-            facility=facility,
-            application_type=FacilityApplication.ApplicationType.LICENCE_RENEWAL,
-            status__in=[
-                FacilityApplication.ApplicationStatus.PENDING,
-            ],
-        ).exists()
-        if has_active_renewal:
+        has_pending_renewal = (
+            latest_renewal is not None
+            and latest_renewal.status == FacilityApplication.ApplicationStatus.PENDING
+        )
+        if has_pending_renewal:
             messages.error(
                 request,
                 "You already have an active licence renewal application. Please wait for regulator review or cancel your existing application before starting a new one.",
