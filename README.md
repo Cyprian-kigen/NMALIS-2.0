@@ -70,3 +70,4 @@ static/          # CSS
 ## Author
 
 Cyprian Abel Kigen Rotich — Kabarak University, CS/MK/0741/09/23
+# NMALIS-2.0
